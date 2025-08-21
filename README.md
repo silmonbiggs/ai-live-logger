@@ -124,3 +124,7 @@ Messages are stored in NDJSON format with the following structure:
 - **Log Rotation**: 100 messages for main log, 2 for recent
 - **Duplicate Window**: 5 seconds
 - **Supported Domains**: chatgpt.com, chat.openai.com
+
+## License
+
+MIT License - see LICENSE file for details.
