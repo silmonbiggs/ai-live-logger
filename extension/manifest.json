@@ -1,0 +1,24 @@
+
+{
+  "manifest_version": 3,
+  "name": "ChatGPT Live Logger",
+  "version": "1.0.8",
+  "description": "Streams user + assistant messages to a local logger.",
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "http://127.0.0.1:8788/*"
+  ],
+  "permissions": ["storage"],
+  "background": { "service_worker": "bg.js" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
