@@ -106,6 +106,17 @@ Messages are stored in NDJSON format with the following structure:
 }
 ```
 
+## Example Usage
+
+1. Start the server: `python server/chatgpt-live-logger.py`
+2. Chat with ChatGPT
+3. Watch messages appear in `chat.log`:
+
+```json
+{"ts": "2025-01-21T15:30:45", "role": "user", "content": "What is Python?", "urls": []}
+{"ts": "2025-01-21T15:30:47", "role": "assistant", "content": "Python is a programming language...", "urls": []}
+```
+
 ## Technical Details
 
 - **Extension Version**: 1.0.8
