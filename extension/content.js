@@ -1,8 +1,98 @@
-// content.js - unified logger for both user and assistant messages
+// content.js - unified logger for ChatGPT and Claude user and assistant messages
 (function () {
   "use strict";
-  console.log("[ChatGPT Live Logger] content script starting...");
+  
+  // Platform detection
+  const PLATFORM = detectPlatform();
+  const LOGGER_NAME = `[AI Chat Logger - ${PLATFORM.toUpperCase()}]`;
+  console.log(`${LOGGER_NAME} content script starting...`);
+  
+  function detectPlatform() {
+    const hostname = window.location.hostname;
+    if (hostname.includes('claude.ai')) return 'claude';
+    if (hostname.includes('chatgpt.com') || hostname.includes('chat.openai.com')) return 'chatgpt';
+    return 'unknown';
+  }
 
+  // ----------------- platform configurations -----------------
+  const PLATFORM_CONFIG = {
+    chatgpt: {
+      userInputSelectors: [
+        'textarea[placeholder="Ask anything"]',
+        'textarea[placeholder*="Ask"]',
+        'div[contenteditable="true"]',
+        'textarea[placeholder*="Message"]',
+        'textarea[placeholder*="message"]',
+        'textarea[data-id]',
+        'textarea',
+        '[role="textbox"]',
+        'input[type="text"]',
+        '[data-id*="root"]',
+        '#prompt-textarea',
+        '[data-testid*="input"]',
+        '[data-testid*="prompt"]',
+        '[id*="prompt"]',
+        '[class*="prompt"]'
+      ],
+      assistantSelectors: [
+        '[data-message-author-role="assistant"]'
+      ],
+      sendButtonSelectors: [
+        'button[aria-label*="send"]',
+        'button[data-testid*="send"]',
+        'button[type="submit"]'
+      ],
+      streamingDelay: 2500
+    },
+    claude: {
+      userInputSelectors: [
+        'textarea[placeholder*="message"]',
+        'textarea[placeholder*="Message"]',
+        'textarea[data-testid*="input"]',
+        'div[contenteditable="true"][role="textbox"]',
+        'textarea[aria-label*="message"]',
+        '[data-cy="chat-input"]',
+        '.chat-input textarea',
+        '[data-testid="chat-input"]',
+        'textarea[placeholder*="Ask"]',
+        'textarea[placeholder*="ask"]',
+        'textarea',
+        '[role="textbox"]'
+      ],
+      assistantSelectors: [
+        '[data-role="assistant"]',
+        '[data-message-role="assistant"]',
+        '.message-assistant',
+        '.claude-message',
+        '[data-testid*="assistant"]',
+        '.response-message',
+        '[data-testid*="message"][data-role*="assistant"]',
+        '.message[data-role="assistant"]',
+        // More specific Claude selectors to avoid UI noise
+        'div[data-testid^="message-content"]',
+        'div[role="article"]:not([class*="header"]):not([class*="button"])',
+        // Only target actual message content areas
+        'main div[class*="prose"]:not([class*="header"]):not([class*="nav"])',
+        // Avoid broad selectors that catch UI elements
+        'div[class*="message-content"]',
+        'article:not([class*="header"]):not([class*="nav"])',
+        // Add back some broader selectors for Claude responses (filtered by isUINoiseContent)
+        'div[class*="message"]',
+        'div > p',
+        'main div:not([class*="input"]):not([class*="button"]):not([class*="header"])'
+      ],
+      sendButtonSelectors: [
+        'button[aria-label*="send"]',
+        'button[data-testid*="send"]',
+        'button[type="submit"]',
+        '.send-button'
+      ],
+      streamingDelay: 3000
+    }
+  };
+  
+  const CONFIG = PLATFORM_CONFIG[PLATFORM] || PLATFORM_CONFIG.chatgpt;
+  
   // ----------------- utilities -----------------
   function normText(s) {
     if (!s) return "";
@@ -80,46 +170,136 @@
     try {
       const u = new URL(window.location.href);
       const parts = u.pathname.split("/").filter(Boolean);
-      const cindex = parts.indexOf("c");
-      if (cindex >= 0 && parts[cindex + 1]) return parts[cindex + 1];
+      
+      if (PLATFORM === 'chatgpt') {
+        const cindex = parts.indexOf("c");
+        if (cindex >= 0 && parts[cindex + 1]) return parts[cindex + 1];
+        return parts.join("/") || u.pathname || "no-convo";
+      } else if (PLATFORM === 'claude') {
+        // Claude typically uses /chat/[id] structure
+        const chatIndex = parts.indexOf("chat");
+        if (chatIndex >= 0 && parts[chatIndex + 1]) return parts[chatIndex + 1];
+        // Fallback to last path segment if it looks like an ID
+        const lastPart = parts[parts.length - 1];
+        if (lastPart && lastPart.length > 10) return lastPart;
+        return parts.join("/") || u.pathname || "no-convo";
+      }
+      
       return parts.join("/") || u.pathname || "no-convo";
     } catch (e) {
       return "no-convo";
     }
   }
+  
+  // Claude-specific artifact detection
+  function captureClaudeArtifacts(node) {
+    if (PLATFORM !== 'claude') return [];
+    
+    const artifacts = [];
+    const artifactSelectors = [
+      '[data-testid*="artifact"]',
+      '.artifact-container',
+      '[class*="artifact"]',
+      '.code-block',
+      '.preview-container'
+    ];
+    
+    artifactSelectors.forEach(selector => {
+      const elements = node.querySelectorAll ? node.querySelectorAll(selector) : [];
+      elements.forEach(element => {
+        const content = element.innerText || element.textContent || '';
+        if (content.trim().length > 10) {
+          artifacts.push({
+            type: 'artifact',
+            content: content.trim(),
+            language: element.getAttribute('data-language') || 'unknown',
+            selector: selector
+          });
+        }
+      });
+    });
+    
+    return artifacts;
+  }
+  
+  // Tool usage detection for both platforms
+  function detectToolUsage(text) {
+    const tools = [];
+    
+    const toolPatterns = [
+      /(?:used|using|calling)\s+(\w+)\s+tool/i,
+      /\[Tool:\s*(\w+)\]/i,
+      /```(\w+)\s*\n/i, // Code blocks
+      /\*\*Tool Used:\*\*\s*(\w+)/i,
+      /tool_calls?["']?:\s*["']?(\w+)/i
+    ];
+    
+    // Claude-specific patterns
+    if (PLATFORM === 'claude') {
+      toolPatterns.push(
+        /thinking/i,
+        /computer_use/i,
+        /bash/i,
+        /python/i,
+        /code_execution/i
+      );
+    }
+    
+    // ChatGPT-specific patterns
+    if (PLATFORM === 'chatgpt') {
+      toolPatterns.push(
+        /web_search/i,
+        /dall_e/i,
+        /code_interpreter/i,
+        /browser/i
+      );
+    }
+    
+    toolPatterns.forEach(pattern => {
+      const matches = text.match(pattern);
+      if (matches) {
+        const tool = matches[1] || matches[0].toLowerCase();
+        if (!tools.includes(tool)) {
+          tools.push(tool);
+        }
+      }
+    });
+    
+    return tools;
+  }
 
   // ----------------- send function -----------------
   function sendToBackground(payload) {
-    console.log("[ChatGPT Live Logger] attempting to send:", payload.role, payload.text?.slice(0, 100));
+    console.log(`${LOGGER_NAME} attempting to send:`, payload.role, payload.text?.slice(0, 100));
     
     try {
       chrome.runtime.sendMessage({ type: "LOG", payload }, (response) => {
         if (chrome.runtime.lastError) {
-          console.error("[ChatGPT Live Logger] send error:", chrome.runtime.lastError.message);
+          console.error(`${LOGGER_NAME} send error:`, chrome.runtime.lastError.message);
           
           // If extension context is invalidated, suggest page reload
           if (chrome.runtime.lastError.message.includes('context invalidated') || 
               chrome.runtime.lastError.message.includes('Extension context')) {
-            console.error("[ChatGPT Live Logger] Extension context invalidated - please reload this ChatGPT tab");
+            console.error(`${LOGGER_NAME} Extension context invalidated - please reload this ${PLATFORM} tab`);
             
             // Try to reconnect by reloading the content script
             setTimeout(() => {
-              console.log("[ChatGPT Live Logger] Attempting to reinitialize...");
+              console.log(`${LOGGER_NAME} Attempting to reinitialize...`);
               location.reload();
             }, 2000);
           }
         } else if (response?.ok) {
-          console.log("[ChatGPT Live Logger] sent successfully:", payload.role);
+          console.log(`${LOGGER_NAME} sent successfully:`, payload.role);
         } else {
-          console.error("[ChatGPT Live Logger] server error:", response?.error);
+          console.error(`${LOGGER_NAME} server error:`, response?.error);
         }
       });
     } catch (e) {
-      console.error("[ChatGPT Live Logger] exception:", e.message);
+      console.error(`${LOGGER_NAME} exception:`, e.message);
       
       // If we can't even call chrome.runtime.sendMessage, the context is definitely broken
       if (e.message.includes('Extension context')) {
-        console.error("[ChatGPT Live Logger] Extension context broken - reloading page in 2 seconds");
+        console.error(`${LOGGER_NAME} Extension context broken - reloading page in 2 seconds`);
         setTimeout(() => location.reload(), 2000);
       }
     }
@@ -135,31 +315,15 @@
     
     setTimeout(() => {
       try {
-        // Try multiple selectors for the input field - updated for current ChatGPT interface
-        const selectors = [
-          'textarea[placeholder="Ask anything"]', // Specific to current ChatGPT
-          'textarea[placeholder*="Ask"]',
-          'div[contenteditable="true"]',
-          'textarea[placeholder*="Message"]',
-          'textarea[placeholder*="message"]',
-          'textarea[data-id]',
-          'textarea',
-          '[role="textbox"]',
-          'input[type="text"]',
-          '[data-id*="root"]',
-          '#prompt-textarea',
-          '[data-testid*="input"]',
-          '[data-testid*="prompt"]',
-          '[id*="prompt"]',
-          '[class*="prompt"]'
-        ];
+        // Use platform-specific selectors
+        const selectors = CONFIG.userInputSelectors;
         
         let input = null;
         let foundElements = [];
         
         for (const selector of selectors) {
           const elements = document.querySelectorAll(selector);
-          console.log(`[ChatGPT Live Logger] selector "${selector}" found ${elements.length} elements`);
+          console.log(`${LOGGER_NAME} selector "${selector}" found ${elements.length} elements`);
           
           for (const el of elements) {
             foundElements.push({
@@ -174,7 +338,7 @@
             // Check if this element is likely the main input
             if (el.offsetHeight > 0 && el.offsetWidth > 100) { // Visible and reasonable size
               input = el;
-              console.log(`[ChatGPT Live Logger] selected input with selector "${selector}"`);
+              console.log(`${LOGGER_NAME} selected input with selector "${selector}"`);
               break;
             }
           }
@@ -182,12 +346,12 @@
         }
         
         // Enhanced debugging
-        console.log("[ChatGPT Live Logger] all found elements:", foundElements);
+        console.log(`${LOGGER_NAME} all found elements:`, foundElements);
         
         if (input) {
           const text = normText(input.innerText || input.textContent || input.value || "");
-          console.log("[ChatGPT Live Logger] checking user input:", text.slice(0, 50));
-          console.log("[ChatGPT Live Logger] input element:", {
+          console.log(`${LOGGER_NAME} checking user input:`, text.slice(0, 50));
+          console.log(`${LOGGER_NAME} input element:`, {
             tagName: input.tagName,
             placeholder: input.placeholder,
             dataId: input.getAttribute('data-id'),
@@ -198,17 +362,25 @@
           if (text && text !== lastUserText && text.length > 2) {
             lastUserText = text;
             const payload = {
-              id: `user-${Date.now()}`,
+              id: `${PLATFORM}-user-${Date.now()}`,
               ts: new Date().toISOString(),
+              platform: PLATFORM,
               convo: convoIdFromUrl(),
               role: "user",
               text: text,
-              urls: []
+              urls: [],
+              metadata: {
+                artifacts: [],
+                tools: detectToolUsage(text),
+                streaming: false,
+                messageLength: text.length
+              }
             };
-            console.log("[ChatGPT Live Logger] ✓ captured user input:", text.slice(0, 100));
+            console.log(`${LOGGER_NAME} ✓ captured user input:`, text.slice(0, 100));
+            recordUserInteraction(); // Track that user just interacted
             sendToBackground(payload);
           } else {
-            console.log("[ChatGPT Live Logger] skipping - no new text or too short:", {
+            console.log(`${LOGGER_NAME} skipping - no new text or too short:`, {
               hasText: !!text,
               length: text.length,
               isDuplicate: text === lastUserText,
@@ -216,13 +388,13 @@
             });
           }
         } else {
-          console.log("[ChatGPT Live Logger] no suitable input field found");
+          console.log(`${LOGGER_NAME} no suitable input field found`);
           // Enhanced debug: log all potential inputs with details
           const allInputs = document.querySelectorAll('input, textarea, [contenteditable], [role="textbox"]');
-          console.log("[ChatGPT Live Logger] found", allInputs.length, "input elements total");
+          console.log(`${LOGGER_NAME} found`, allInputs.length, "input elements total");
           
           allInputs.forEach((el, i) => {
-            console.log(`[ChatGPT Live Logger] input ${i}:`, {
+            console.log(`${LOGGER_NAME} input ${i}:`, {
               tagName: el.tagName,
               type: el.type,
               placeholder: el.placeholder,
@@ -235,7 +407,7 @@
           });
         }
       } catch (e) {
-        console.error("[ChatGPT Live Logger] user capture error:", e);
+        console.error(`${LOGGER_NAME} user capture error:`, e);
       }
       
       userInputActive = false;
@@ -244,18 +416,21 @@
 
   // Store user text as they type
   let currentUserText = "";
+  let extensionStartTime = Date.now(); // Track when extension started
   
   function setupUserCapture() {
-    console.log("[ChatGPT Live Logger] setting up user input capture");
+    console.log(`${LOGGER_NAME} setting up user input capture`);
     
     // Monitor input changes in real-time
     document.addEventListener('input', (e) => {
       const target = e.target;
+      console.log(`${LOGGER_NAME} input event on:`, target.tagName, target.contentEditable, target.placeholder?.slice(0, 30));
       if (target && (target.tagName === 'TEXTAREA' || target.contentEditable === 'true')) {
         const text = normText(target.innerText || target.textContent || target.value || "");
+        console.log(`${LOGGER_NAME} input text captured:`, text.slice(0, 50));
         if (text.length > 2) {
           currentUserText = text;
-          console.log("[ChatGPT Live Logger] user typing:", text.slice(0, 50));
+          console.log(`${LOGGER_NAME} user typing:`, text.slice(0, 50));
         }
       }
     }, true);
@@ -263,20 +438,27 @@
     // Listen for Enter key
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
-        console.log("[ChatGPT Live Logger] Enter pressed, current text:", currentUserText.slice(0, 100));
+        console.log(`${LOGGER_NAME} Enter pressed, current text:`, currentUserText.slice(0, 100));
         
         // Use the text we've been tracking as user types
         if (currentUserText && currentUserText.length > 2 && currentUserText !== lastUserText) {
           lastUserText = currentUserText;
           const payload = {
-            id: `user-${Date.now()}`,
+            id: `${PLATFORM}-user-${Date.now()}`,
             ts: new Date().toISOString(),
+            platform: PLATFORM,
             convo: convoIdFromUrl(),
             role: "user",
             text: currentUserText,
-            urls: []
+            urls: [],
+            metadata: {
+              artifacts: [],
+              tools: detectToolUsage(currentUserText),
+              streaming: false,
+              messageLength: currentUserText.length
+            }
           };
-          console.log("[ChatGPT Live Logger] ✓ capturing user input from typing:", currentUserText.slice(0, 100));
+          console.log(`${LOGGER_NAME} ✓ capturing user input from typing:`, currentUserText.slice(0, 100));
           sendToBackground(payload);
           
           // Clear the stored text since it's been sent
@@ -287,19 +469,26 @@
         const activeElement = document.activeElement;
         if (activeElement && (activeElement.tagName === 'TEXTAREA' || activeElement.contentEditable === 'true')) {
           const immediateText = normText(activeElement.innerText || activeElement.textContent || activeElement.value || "");
-          console.log("[ChatGPT Live Logger] immediate capture on Enter:", immediateText.slice(0, 100));
+          console.log(`${LOGGER_NAME} immediate capture on Enter:`, immediateText.slice(0, 100));
           
           if (immediateText && immediateText.length > 2 && immediateText !== lastUserText) {
             lastUserText = immediateText;
             const payload = {
-              id: `user-${Date.now()}`,
+              id: `${PLATFORM}-user-${Date.now()}`,
               ts: new Date().toISOString(),
+              platform: PLATFORM,
               convo: convoIdFromUrl(),
               role: "user",
               text: immediateText,
-              urls: []
+              urls: [],
+              metadata: {
+                artifacts: [],
+                tools: detectToolUsage(immediateText),
+                streaming: false,
+                messageLength: immediateText.length
+              }
             };
-            console.log("[ChatGPT Live Logger] ✓ immediate user capture successful:", immediateText.slice(0, 100));
+            console.log(`${LOGGER_NAME} ✓ immediate user capture successful:`, immediateText.slice(0, 100));
             sendToBackground(payload);
           }
         }
@@ -311,17 +500,24 @@
     
     // Also listen for form submissions
     document.addEventListener('submit', (e) => {
-      console.log("[ChatGPT Live Logger] Form submitted, current text:", currentUserText.slice(0, 100));
+      console.log(`${LOGGER_NAME} Form submitted, current text:`, currentUserText.slice(0, 100));
       if (currentUserText && currentUserText.length > 2) {
         const payload = {
-          id: `user-${Date.now()}`,
+          id: `${PLATFORM}-user-${Date.now()}`,
           ts: new Date().toISOString(),
+          platform: PLATFORM,
           convo: convoIdFromUrl(),
           role: "user",
           text: currentUserText,
-          urls: []
+          urls: [],
+          metadata: {
+            artifacts: [],
+            tools: detectToolUsage(currentUserText),
+            streaming: false,
+            messageLength: currentUserText.length
+          }
         };
-        console.log("[ChatGPT Live Logger] ✓ capturing from form submit:", currentUserText.slice(0, 100));
+        console.log(`${LOGGER_NAME} ✓ capturing from form submit:`, currentUserText.slice(0, 100));
         sendToBackground(payload);
         currentUserText = "";
       }
@@ -330,14 +526,16 @@
 
     // Listen for any button clicks
     document.addEventListener('click', (e) => {
+      console.log(`${LOGGER_NAME} click detected on:`, e.target.tagName, e.target.textContent?.slice(0, 50));
       const button = e.target.closest('button');
       if (button) {
+        console.log(`${LOGGER_NAME} button click detected:`, button.textContent?.slice(0, 50));
         const buttonText = (button.textContent || '').toLowerCase();
         const ariaLabel = (button.getAttribute('aria-label') || '').toLowerCase();
         const hasDataTestId = button.getAttribute('data-testid');
         const className = button.className;
         
-        console.log("[ChatGPT Live Logger] button clicked:", {
+        console.log(`${LOGGER_NAME} button clicked:`, {
           text: buttonText,
           ariaLabel: ariaLabel,
           testId: hasDataTestId,
@@ -346,7 +544,7 @@
           type: button.type
         });
         
-        // Enhanced button detection for current ChatGPT interface
+        // Enhanced button detection for both ChatGPT and Claude interfaces
         const isSendButton = (
           buttonText.includes('send') || 
           ariaLabel.includes('send') || 
@@ -361,7 +559,7 @@
         );
         
         if (isSendButton) {
-          console.log("[ChatGPT Live Logger] send button detected");
+          console.log(`${LOGGER_NAME} send button detected`);
           captureUserText();
         }
       }
@@ -373,6 +571,82 @@
   let lastAssistantTime = 0;
   let assistantNodes = new Set();
   let pendingCaptures = new Map(); // For debouncing
+  
+  // Conversation state tracking to distinguish historical vs new content
+  let conversationState = {
+    lastKnownMessageCount: 0,
+    lastUserInteraction: 0,
+    sequentialMessages: new Map(), // Track message sequence positions
+    baseline: new Set() // Messages that existed when extension loaded
+  };
+  
+  // Establish baseline of existing conversation content
+  function establishConversationBaseline() {
+    console.log(`${LOGGER_NAME} establishing conversation baseline...`);
+    try {
+      CONFIG.assistantSelectors.forEach(selector => {
+        const messages = document.querySelectorAll(selector);
+        messages.forEach(msg => {
+          const text = (msg.innerText || msg.textContent || '').trim();
+          if (text && text.length > 3) {
+            conversationState.baseline.add(text);
+            console.log(`${LOGGER_NAME} baseline message:`, text.slice(0, 50));
+          }
+        });
+      });
+      conversationState.lastKnownMessageCount = conversationState.baseline.size;
+      console.log(`${LOGGER_NAME} baseline established with ${conversationState.baseline.size} existing messages`);
+    } catch (e) {
+      console.error(`${LOGGER_NAME} error establishing baseline:`, e);
+    }
+  }
+  
+  // Check if a message appears to be new (not in baseline, after user interaction)
+  function isNewMessage(text, timestamp) {
+    // If message was in baseline, it's historical
+    if (conversationState.baseline.has(text)) {
+      console.log(`${LOGGER_NAME} message is in baseline (historical):`, text.slice(0, 50));
+      return false;
+    }
+    
+    // CRITICAL: If we've seen this exact text recently in our processed set, it's a duplicate
+    // This should be the primary check to prevent duplicates
+    if (window.processedMessageTexts && window.processedMessageTexts.has(text)) {
+      const lastProcessed = window.processedMessageTexts.get(text);
+      const timeSinceLastProcessed = timestamp - lastProcessed;
+      console.log(`${LOGGER_NAME} DUPLICATE detected - message already processed ${timeSinceLastProcessed}ms ago:`, text.slice(0, 50));
+      return false;
+    }
+    
+    // Also check Claude message history with longer timeframe
+    if (window.claudeMessageHistory && window.claudeMessageHistory.length > 0) {
+      const recentDuplicate = window.claudeMessageHistory.find(msg => 
+        msg.text === text && 
+        msg.role === 'assistant' && 
+        (timestamp - msg.timestamp) < 300000  // 5 minutes window
+      );
+      if (recentDuplicate) {
+        const timeSinceDuplicate = timestamp - recentDuplicate.timestamp;
+        console.log(`${LOGGER_NAME} DUPLICATE detected in history (${timeSinceDuplicate}ms ago):`, text.slice(0, 50));
+        return false;
+      }
+    }
+    
+    // If no recent user interaction, treat with suspicion (but allow if very recent)
+    const timeSinceUserInteraction = timestamp - conversationState.lastUserInteraction;
+    if (timeSinceUserInteraction > 120000 && conversationState.lastUserInteraction > 0) {  // Extended to 2 minutes
+      console.log(`${LOGGER_NAME} message appears without recent user interaction (${timeSinceUserInteraction}ms):`, text.slice(0, 50));
+      return false;
+    }
+    
+    return true;
+  }
+  
+  // Update user interaction timestamp when user sends messages
+  function recordUserInteraction() {
+    conversationState.lastUserInteraction = Date.now();
+    console.log(`${LOGGER_NAME} user interaction recorded at:`, conversationState.lastUserInteraction);
+  }
   
   function cleanAssistantText(text) {
     // Remove conversation wrappers and summaries
@@ -411,11 +685,84 @@
     return cleaned.trim();
   }
 
+  function isUINoiseContent(text, node) {
+    // Early UI noise detection
+    const textLower = text.toLowerCase();
+    
+    // Allow short valid Claude responses (like "okay27", "okay28") BUT only if they're truly new
+    if (text.length < 10 && text.match(/^okay\d+$/i)) {
+      // This looks like a valid Claude response, check if it's not in a button or navigation
+      if (node && node.closest && (node.closest('button') || node.closest('nav') || node.closest('[class*="nav"]') || node.closest('[class*="sidebar"]'))) {
+        console.log(`${LOGGER_NAME} rejecting okay response in UI element:`, text);
+        return true;
+      }
+      // Additional check: if this is in a chat history area vs active message
+      if (node && node.closest && node.closest('[class*="history"]')) {
+        console.log(`${LOGGER_NAME} rejecting okay response in chat history:`, text);
+        return true;
+      }
+      return false; // Allow it if it passes all checks
+    }
+    
+    // Button text patterns
+    if (text.match(/\w+\s+(retry|share)$/i)) return true;
+    
+    // UI header patterns
+    if (textLower.includes('test message confirmation')) return true;
+    if (textLower.includes('message confirmation')) return true;
+    
+    // Very short responses that are likely UI elements (but not valid responses)
+    if (text.length < 10 && text.match(/^(yes|no|retry|share)$/i)) return true;
+    
+    // Check if this looks like user input being reflected in UI
+    if (text.includes('testmessage') && text.includes('respond')) {
+      // Only reject if it's in a UI element, not a legitimate user message
+      if (node && node.closest && (node.closest('button') || node.closest('[class*="input"]'))) {
+        return true;
+      }
+    }
+    
+    // Check if the element has button-like characteristics
+    if (node && node.closest && node.closest('button')) return true;
+    
+    // Check if in a navigation or header area
+    if (node && node.closest && (node.closest('nav') || node.closest('header') || node.closest('[class*="header"]') || node.closest('[class*="sidebar"]'))) return true;
+    
+    return false;
+  }
+
   function captureAssistantMessage(node, forceImmediate = false) {
     try {
-      if (assistantNodes.has(node)) return; // already processed
+      // Create a more robust node identifier
+      const textContent = node.innerText || node.textContent || "";
+      let text = normText(textContent);
       
-      const nodeId = node.getAttribute('data-message-id') || `node-${Date.now()}-${Math.random()}`;
+      // Create a unique identifier combining node and text
+      const nodeIdentifier = `${node.tagName}-${text.slice(0, 50)}-${text.length}`;
+      
+      if (assistantNodes.has(node)) {
+        console.log(`${LOGGER_NAME} node already processed:`, nodeIdentifier.slice(0, 50));
+        return; // already processed
+      }
+      
+      // Also check for duplicate content across different nodes
+      if (text.length > 0 && window.processedMessageTexts && window.processedMessageTexts.has(text)) {
+        const lastProcessed = window.processedMessageTexts.get(text);
+        const timeSinceLastProcessed = Date.now() - lastProcessed;
+        console.log(`${LOGGER_NAME} duplicate text content already processed ${timeSinceLastProcessed}ms ago:`, text.slice(0, 50));
+        assistantNodes.add(node); // Mark node as processed to avoid future checks
+        return;
+      }
+      
+      const nodeId = node.getAttribute('data-message-id') || nodeIdentifier;
+      
+      // Skip capturing existing content when extension first loads (avoid capturing stale responses)
+      const timeSinceExtensionStart = Date.now() - extensionStartTime;
+      if (timeSinceExtensionStart < 30000 && !forceImmediate) {
+        console.log(`${LOGGER_NAME} skipping potential stale content during extension startup (${timeSinceExtensionStart}ms since start)`);
+        assistantNodes.add(node); // Mark as processed to avoid future capture
+        return;
+      }
       
       // If not forcing immediate capture, implement debouncing for streaming content
       if (!forceImmediate) {
@@ -437,17 +784,41 @@
       // Mark as processed
       assistantNodes.add(node);
       
-      // Clean up old nodes
+      // Initialize processed texts tracking
+      if (typeof window.processedMessageTexts === 'undefined') {
+        window.processedMessageTexts = new Set();
+      }
+      
+      // Clean up old nodes and texts
       if (assistantNodes.size > 50) {
         const oldNodes = Array.from(assistantNodes).slice(0, 25);
         oldNodes.forEach(n => assistantNodes.delete(n));
       }
       
-      const textContent = node.innerText || node.textContent || "";
-      let text = normText(textContent);
-      const urls = extractUrlsFromNode(node);
+      if (window.processedMessageTexts.size > 200) {
+        // Clean old entries based on timestamp (keep entries from last 10 minutes)
+        const tenMinutesAgo = Date.now() - 600000;
+        const entries = Array.from(window.processedMessageTexts.entries());
+        window.processedMessageTexts.clear();
+        entries.forEach(([text, timestamp]) => {
+          if (timestamp > tenMinutesAgo) {
+            window.processedMessageTexts.set(text, timestamp);
+          }
+        });
+        console.log(`${LOGGER_NAME} cleaned old processed texts, kept ${window.processedMessageTexts.size} recent entries`);
+      }
       
-      console.log("[ChatGPT Live Logger] raw text:", text.slice(0, 100));
+      // Early filtering for UI noise
+      if (isUINoiseContent(text, node)) {
+        console.log(`${LOGGER_NAME} skipping UI noise:`, text.slice(0, 50));
+        return;
+      }
+      
+      const urls = extractUrlsFromNode(node);
+      const artifacts = captureClaudeArtifacts(node);
+      const tools = detectToolUsage(text);
+      
+      console.log(`${LOGGER_NAME} raw text:`, text.slice(0, 100));
       
       // Clean up conversation artifacts
       text = cleanAssistantText(text);
@@ -479,22 +850,30 @@
         console.log("[ChatGPT Live Logger] detected broken PLAY command, will capture anyway");
       }
       
-      // Check if this is meaningful new content or enough time has passed for repeats
+      // New conversation-state-aware duplicate detection
       const now = Date.now();
-      const timeSinceLastCapture = now - lastAssistantTime;
-      const isDuplicate = text === lastAssistantText;
-      const allowRepeat = timeSinceLastCapture > 3000; // Allow repeats after 3 seconds
       
-      if (text !== lastAssistantText || (isDuplicate && allowRepeat)) {
+      // Use the new message detection logic
+      if (!isNewMessage(text, now)) {
+        console.log(`${LOGGER_NAME} message determined to be historical/duplicate - skipping`);
+        return;
+      }
+      
+      // Additional check for very recent duplicates (streaming protection)
+      const timeSinceLastCapture = now - lastAssistantTime;
+      if (text === lastAssistantText && timeSinceLastCapture < 2000) {
+        console.log(`${LOGGER_NAME} too recent duplicate - likely streaming artifact:`, timeSinceLastCapture);
+        return;
+      }
+      
+      console.log(`${LOGGER_NAME} ✓ NEW assistant message passed all checks:`, text.slice(0, 50));
+      
+      if (text !== lastAssistantText || timeSinceLastCapture > 30000) {
         // Additional check: make sure we're not capturing a fragment of a longer message
         const textHash = text.slice(0, 50); // Use first 50 chars as fingerprint
-        if (lastAssistantText && lastAssistantText.includes(textHash) && text.length < lastAssistantText.length && !allowRepeat) {
-          console.log("[ChatGPT Live Logger] skipping partial message capture");
+        if (lastAssistantText && lastAssistantText.includes(textHash) && text.length < lastAssistantText.length && timeSinceLastCapture < 30000) {
+          console.log(`${LOGGER_NAME} skipping partial message capture`);
           return;
-        }
-        
-        if (isDuplicate && allowRepeat) {
-          console.log("[ChatGPT Live Logger] allowing repeat message after", timeSinceLastCapture, "ms");
         }
         
         lastAssistantText = text;
@@ -521,75 +900,84 @@
         });
         
         const payload = {
-          id: `assistant-${Date.now()}`,
+          id: `${PLATFORM}-assistant-${Date.now()}`,
           ts: new Date().toISOString(),
+          platform: PLATFORM,
           convo: convoIdFromUrl(),
           role: "assistant",
           text: text,
-          urls: finalUrls
+          urls: finalUrls,
+          metadata: {
+            artifacts: artifacts,
+            tools: tools,
+            streaming: !forceImmediate,
+            messageLength: text.length
+          }
         };
         
-        console.log("[ChatGPT Live Logger] captured clean assistant message:", text.slice(0, 100));
-        console.log("[ChatGPT Live Logger] final URLs:", finalUrls);
+        // Add to history tracking
+        window.claudeMessageHistory.push({
+          text: text,
+          role: 'assistant',
+          timestamp: now
+        });
+        
+        // Add to processed texts map with timestamp
+        window.processedMessageTexts.set(text, now);
+        
+        // Keep history manageable
+        if (window.claudeMessageHistory.length > 50) {
+          window.claudeMessageHistory = window.claudeMessageHistory.slice(-25);
+        }
+        
+        console.log(`${LOGGER_NAME} ✓ CAPTURED assistant message:`, text.slice(0, 100));
+        console.log(`${LOGGER_NAME} final URLs:`, finalUrls);
+        console.log(`${LOGGER_NAME} artifacts:`, payload.metadata.artifacts.length);
+        console.log(`${LOGGER_NAME} tools:`, payload.metadata.tools);
         sendToBackground(payload);
       }
     } catch (e) {
-      console.error("[ChatGPT Live Logger] error capturing assistant message:", e);
+      console.error(`${LOGGER_NAME} error capturing assistant message:`, e);
     }
   }
 
   // More aggressive DOM observation
   const observer = new MutationObserver((mutations) => {
+    // Skip processing during extension startup to avoid capturing stale content
+    const timeSinceExtensionStart = Date.now() - extensionStartTime;
+    if (timeSinceExtensionStart < 30000) {
+      console.log(`${LOGGER_NAME} skipping mutation processing during extension startup (${timeSinceExtensionStart}ms)`);
+      return;
+    }
+    
     for (const mutation of mutations) {
       // Check all added nodes
       for (const node of mutation.addedNodes) {
         if (node.nodeType === Node.ELEMENT_NODE) {
           try {
-            // Multiple strategies to find assistant messages
+            // Multiple strategies to find assistant messages using platform-specific selectors
             
-            // Strategy 1: Direct role attribute
-            if (node.getAttribute && node.getAttribute('data-message-author-role') === 'assistant') {
-              captureAssistantMessage(node); // Use debounced capture
-            }
-            
-            // Strategy 2: Search within added node
-            if (node.querySelector) {
-              const assistantNodes = node.querySelectorAll('[data-message-author-role="assistant"]');
-              assistantNodes.forEach(n => captureAssistantMessage(n)); // Use debounced capture
-            }
-            
-            // Strategy 3: Look for message-like content that might be assistant responses
-            if (node.querySelector) {
-              const possibleMessages = node.querySelectorAll('div, p, span');
-              possibleMessages.forEach(msg => {
-                const text = normText(msg.innerText || msg.textContent || "");
-                if (text.length > 20 && !text.toLowerCase().includes('user') && 
-                    !msg.closest('[data-message-author-role="user"]')) {
-                  // Only capture if it contains complete URLs or media commands
-                  // Avoid partial captures like "VideoPLAY" or fragments
-                  const hasCompleteCommand = (
-                    (text.toUpperCase().includes('PLAY:') && text.includes('http')) ||
-                    text.toUpperCase().includes('SEQUENCE:') || 
-                    text.toUpperCase().includes('VOLUME:') ||
-                    text.toUpperCase().includes('PAUSE') ||
-                    text.toUpperCase().includes('STOP')
-                  );
-                  
-                  // Avoid capturing fragments that look like "VideoPLAY" or partial URLs
-                  const isFragment = (
-                    text.includes('VideoPLAY') ||
-                    text.includes('videoplay') ||
-                    (text.includes('PLAY') && !text.includes('http') && !text.includes('PLAY:')) ||
-                    (text.includes('http') && text.length < 30) || // Very short http fragments
-                    text.match(/^[A-Za-z]+PLAY/) // Words directly attached to PLAY
-                  );
-                  
-                  if (hasCompleteCommand && !isFragment) {
-                    captureAssistantMessage(msg); // Use debounced capture
-                  }
+            // Strategy 1: Direct role attribute check
+            if (node.getAttribute) {
+              for (const selector of CONFIG.assistantSelectors) {
+                const attrMatch = selector.match(/\[([^=]+)="([^"]+)"\]/);
+                if (attrMatch && node.getAttribute(attrMatch[1]) === attrMatch[2]) {
+                  captureAssistantMessage(node);
+                  break;
                 }
+              }
+            }
+            
+            // Strategy 2: Search within added node using platform selectors
+            if (node.querySelector) {
+              CONFIG.assistantSelectors.forEach(selector => {
+                const assistantNodes = node.querySelectorAll(selector);
+                assistantNodes.forEach(n => captureAssistantMessage(n));
               });
             }
+            
+            // Strategy 3: Disabled - too aggressive and causes UI noise capture
+            // Rely on more specific selectors in Strategy 1 and 2 only
           } catch (e) {
             // Ignore individual node errors
           }
@@ -600,7 +988,14 @@
       if (mutation.type === 'childList' || mutation.type === 'characterData') {
         const target = mutation.target;
         if (target && target.nodeType === Node.ELEMENT_NODE) {
-          const assistantParent = target.closest ? target.closest('[data-message-author-role="assistant"]') : null;
+          // Check if target is within any assistant message using platform selectors
+          let assistantParent = null;
+          if (target.closest) {
+            for (const selector of CONFIG.assistantSelectors) {
+              assistantParent = target.closest(selector);
+              if (assistantParent) break;
+            }
+          }
           if (assistantParent) {
             captureAssistantMessage(assistantParent); // Use debounced capture for streaming updates
           }
@@ -611,7 +1006,7 @@
 
   // ----------------- initialization -----------------
   function init() {
-    console.log("[ChatGPT Live Logger] initializing...");
+    console.log(`${LOGGER_NAME} initializing for ${PLATFORM}...`);
     
     try {
       // Start aggressive DOM observation
@@ -620,16 +1015,32 @@
         subtree: true,
         characterData: true
       });
-      console.log("[ChatGPT Live Logger] mutation observer started");
+      console.log(`${LOGGER_NAME} mutation observer started`);
       
       // Set up user input capture
       setupUserCapture();
-      console.log("[ChatGPT Live Logger] user input capture started");
+      console.log(`${LOGGER_NAME} user input capture started`);
       
-      // Scan for existing messages
-      const existingAssistant = document.querySelectorAll('[data-message-author-role="assistant"]');
-      console.log("[ChatGPT Live Logger] found", existingAssistant.length, "existing assistant messages");
-      existingAssistant.forEach(node => captureAssistantMessage(node, true)); // Force immediate for existing
+      // Initialize global tracking structures with timestamps
+      if (typeof window.processedMessageTexts === 'undefined') {
+        window.processedMessageTexts = new Map(); // Changed to Map to store timestamps
+      }
+      if (typeof window.claudeMessageHistory === 'undefined') {
+        window.claudeMessageHistory = [];
+      }
+      
+      // Establish baseline of existing conversation content
+      establishConversationBaseline();
+      
+      // Skip scanning existing messages to avoid capturing stale content
+      let existingAssistant = [];
+      CONFIG.assistantSelectors.forEach(selector => {
+        const nodes = document.querySelectorAll(selector);
+        existingAssistant.push(...Array.from(nodes));
+      });
+      console.log(`${LOGGER_NAME} found`, existingAssistant.length, "existing assistant messages (skipping capture to avoid stale content)");
+      // Mark existing nodes as processed without capturing them
+      existingAssistant.forEach(node => assistantNodes.add(node));
       
       // Also scan for any message-like divs
       const allDivs = document.querySelectorAll('div');
@@ -640,25 +1051,32 @@
           potentialMessages++;
         }
       });
-      console.log("[ChatGPT Live Logger] found", potentialMessages, "potential message divs");
+      console.log(`${LOGGER_NAME} found`, potentialMessages, "potential message divs");
       
-      console.log("[ChatGPT Live Logger] initialization complete");
+      console.log(`${LOGGER_NAME} initialization complete`);
       
     } catch (e) {
-      console.error("[ChatGPT Live Logger] initialization error:", e);
+      console.error(`${LOGGER_NAME} initialization error:`, e);
     }
   }
 
   // Test the extension communication immediately
   setTimeout(() => {
-    console.log("[ChatGPT Live Logger] testing extension communication...");
+    console.log(`${LOGGER_NAME} testing extension communication...`);
     sendToBackground({
-      id: `test-${Date.now()}`,
+      id: `${PLATFORM}-test-${Date.now()}`,
       ts: new Date().toISOString(),
+      platform: PLATFORM,
       convo: "test",
       role: "system",
-      text: "Extension loaded successfully - v2",
-      urls: []
+      text: `Extension loaded successfully for ${PLATFORM} - v2.0.0`,
+      urls: [],
+      metadata: {
+        artifacts: [],
+        tools: [],
+        streaming: false,
+        messageLength: 0
+      }
     });
   }, 1000);
 
@@ -669,28 +1087,9 @@
     init();
   }
 
-  // Additional periodic checks to catch messages we might have missed
-  setInterval(() => {
-    const assistantMessages = document.querySelectorAll('[data-message-author-role="assistant"]');
-    assistantMessages.forEach(node => {
-      if (!assistantNodes.has(node)) {
-        console.log("[ChatGPT Live Logger] periodic scan found new assistant message");
-        captureAssistantMessage(node, true); // Force immediate for periodic scans
-      }
-    });
-    
-    // Also periodically check for user input that might be ready to send
-    const inputField = document.querySelector('textarea[placeholder*="Ask"]') || 
-                      document.querySelector('div[contenteditable="true"]') ||
-                      document.querySelector('textarea');
-    if (inputField) {
-      const text = normText(inputField.innerText || inputField.textContent || inputField.value || "");
-      if (text && text.length > 2 && text !== lastUserText) {
-        console.log("[ChatGPT Live Logger] periodic scan found unsent user text:", text.slice(0, 50));
-        // Don't capture yet, just log that we found it
-      }
-    }
-  }, 5000); // Reduced frequency since we have better real-time capture
+  // DISABLED: Periodic scanning causes duplicate captures of old messages
+  // Relying solely on mutation observer for new content detection
+  console.log(`${LOGGER_NAME} periodic scanning disabled - using mutation observer only for better accuracy`);
 
-  console.log("[ChatGPT Live Logger] content script loaded");
+  console.log(`${LOGGER_NAME} content script loaded`);
 })();

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Platform Detection Test</title>
+</head>
+<body>
+    <h1>AI Chat Logger Platform Detection Test</h1>
+    
+    <div id="test-results"></div>
+    
+    <script>
+        // Simulate the platform detection logic from content.js
+        function detectPlatform() {
+            const hostname = window.location.hostname;
+            if (hostname.includes('claude.ai')) return 'claude';
+            if (hostname.includes('chatgpt.com') || hostname.includes('chat.openai.com')) return 'chatgpt';
+            return 'unknown';
+        }
+        
+        // Test the detection
+        const platform = detectPlatform();
+        const resultsDiv = document.getElementById('test-results');
+        
+        resultsDiv.innerHTML = `
+            <h2>Test Results</h2>
+            <p><strong>Current hostname:</strong> ${window.location.hostname}</p>
+            <p><strong>Detected platform:</strong> ${platform}</p>
+            <p><strong>Status:</strong> ${platform !== 'unknown' ? '✅ Working' : '❌ Unknown platform'}</p>
+            
+            <h3>Expected behavior:</h3>
+            <ul>
+                <li>claude.ai → claude</li>
+                <li>chatgpt.com → chatgpt</li>
+                <li>chat.openai.com → chatgpt</li>
+                <li>other domains → unknown</li>
+            </ul>
+        `;
+    </script>
+</body>
+</html>
+</script>

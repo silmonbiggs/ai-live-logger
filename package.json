@@ -1,0 +1,27 @@
+{
+  "name": "chatgpt-live-logger",
+  "version": "1.0.0",
+  "description": "Built this to capture AI conversations in real-time from ChatGPT and Claude for my AI project. Works great for my use case - maybe useful for yours too!",
+  "main": "server/chatgpt-live-logger.py",
+  "scripts": {
+    "test": "node debug/tests/test-automation.js",
+    "test-claude": "node debug/tests/test-automation.js",
+    "start": "python server/chatgpt-live-logger.py",
+    "analyze": "node debug/tools/analyze_logs.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/silmonbiggs/chaptgpt-live-logger.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/silmonbiggs/chaptgpt-live-logger/issues"
+  },
+  "homepage": "https://github.com/silmonbiggs/chaptgpt-live-logger#readme",
+  "dependencies": {
+    "chromedriver": "^139.0.2",
+    "selenium-webdriver": "^4.35.0"
+  }
+}

@@ -1,0 +1,77 @@
+=== ChurnRoom Debug Output ===
+Session started: 2025-08-24 21:23:53
+==================================================
+
+[2025-08-24 21:23:53] Qt VLC Player not available - falling back to raw VLC
+[2025-08-24 21:23:53] [VLC] python-vlc module imported successfully
+[2025-08-24 21:23:53] [VLC] VLC library version: 3.0.18 Vetinari
+[2025-08-24 21:23:53] yt-dlp not available - YouTube links will open in browser
+[2025-08-24 21:23:53] [QtVLC] Qt VLC Player not available, using raw VLC fallback
+[2025-08-24 21:23:53] [VLC] Creating fallback VLC instance with args: ['--quiet', '--verbosity=0']
+[2025-08-24 21:23:53] [VLC] VLC version: 3.0.18 Vetinari
+[2025-08-24 21:23:58] [VLC] Method 1 failed: VLC.Instance(args) returned None
+[2025-08-24 21:23:58] [VLC] Trying VLC instance creation without arguments...
+[2025-08-24 21:24:03] [VLC] Primary VLC instance created successfully (no args)
+[2025-08-24 21:24:03] [VLC] Primary fallback VLC player created successfully
+[2025-08-24 21:24:03] [VLC] Failed to create secondary fallback VLC instance
+[2025-08-24 21:24:03] [VLC] Creating backup fallback VLC players...
+[2025-08-24 21:24:03] [VLC] Creating fallback VLC instance with args: ['--quiet', '--verbosity=0']
+[2025-08-24 21:24:03] [VLC] VLC version: 3.0.18 Vetinari
+[2025-08-24 21:24:03] [VLC] Method 1 failed: VLC.Instance(args) returned None
+[2025-08-24 21:24:03] [VLC] Trying VLC instance creation without arguments...
+[2025-08-24 21:24:03] [VLC] Primary VLC instance created successfully (no args)
+[2025-08-24 21:24:03] [VLC] Primary fallback VLC player created successfully
+[2025-08-24 21:24:03] [VLC] Failed to create secondary fallback VLC instance
+[2025-08-24 21:24:03] Churn room ready!
+[2025-08-24 21:24:03] The LLM can now use commands like:
+[2025-08-24 21:24:03]   PLAY: https://youtube.com/watch?v=abc (30-45s) CAPTION: Notice the lighting
+[2025-08-24 21:24:03]   PLAY: /path/to/movie.mp4 (120.5-135.2s)
+[2025-08-24 21:24:03]   SEQUENCE: Jaws.mp4(45-60) -> Aliens.mp4(200-215) -> Jaws.mp4(61-75)
+[2025-08-24 21:24:03]   VOLUME: 0.5
+[2025-08-24 21:24:03]   OVERLAY: This is where the tension builds...
+[2025-08-24 21:24:03] To test URL repair functionality, run: python churn_room.py --test-urls
+[2025-08-24 21:24:03] Press Ctrl+C to stop gracefully
+[2025-08-24 21:24:03] Churn Room started, watching chat.log
+[2025-08-24 21:24:03] Cleared previous command/URL history
+[2025-08-24 21:26:10] Processing 100 log entries...
+[2025-08-24 21:26:10] Processing entry: PLAY: https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4...
+[2025-08-24 21:26:10] Found command in: PLAY: https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4
+[2025-08-24 21:26:10] Split into 1 commands: ['PLAY: https://commondatastorage.googleapis.com/gtv...']
+[2025-08-24 21:26:10] Parsing command: PLAY: https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4
+[2025-08-24 21:26:10] URL validation: https://commondatastorage.googleapis.com/gtv-video... -> valid: True, confidence: 1.00
+[2025-08-24 21:26:10] Successfully parsed command: PLAY
+[2025-08-24 21:26:10] [NEW] Added URL to queue: https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4
+[2025-08-24 21:26:10] [QUEUE] Queued command: PLAY - PLAY: https://commondatastorage.googleapis.com/gtv...
+[2025-08-24 21:26:10] [DEBUG] Skipping rapid file change - too soon after last processing
+[2025-08-24 21:26:10] [EXEC] Executing: PLAY
+[2025-08-24 21:26:10] [PLAY] Playing segment: https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4
+[2025-08-24 21:26:10] [PLAY] Media type: video
+[2025-08-24 21:26:10] [PLAY] Timing: 0.0-0.0s
+[2025-08-24 21:26:10] Playing: https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4 (0.0-0.0s)
+[2025-08-24 21:26:10] [DEBUG] Media type: video
+[2025-08-24 21:26:10] [DEBUG] VLC available: True
+[2025-08-24 21:26:10] [DEBUG] VLC player available: True
+[2025-08-24 21:26:10] [DEBUG] Handling video/audio segment
+[2025-08-24 21:26:10] [DEBUG] Using URL as-is: https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4
+[2025-08-24 21:26:10] [DEBUG] About to call _play_vlc()
+[2025-08-24 21:26:10] [VLC] Using raw VLC fallback...
+[2025-08-24 21:26:10] [VLC] Using raw VLC fallback for: https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4
+[2025-08-24 21:26:10] [VLC] Already playing - skipping duplicate command
+[2025-08-24 21:26:10] [DEBUG] _play_vlc() returned: False
+[2025-08-24 21:26:10] [FALLBACK] Qt/VLC failed (result=False), triggering browser fallback
+[2025-08-24 21:26:10] [BROWSER] Using layout manager position: (50, 50), size (860x800)
+[2025-08-24 21:26:10] [BROWSER] Chrome command: C:\Program Files\Google\Chrome\Application\chrome.exe --new-window --window-position=50,50 --window-size=860,800...
+[2025-08-24 21:26:10] [BROWSER] Opened Chrome with HTML wrapper at (50, 50), size (860x800)
+[2025-08-24 21:26:10] [BROWSER] JavaScript timer will auto-close window after 5.0 seconds
+[2025-08-24 21:26:10] [BROWSER] HTML file: C:\Users\silmo\AppData\Local\Temp\chrome_video_bhw1zkt_\timed_video.html
+[2025-08-24 21:26:11] [BROWSER] WARNING: Chrome process 236 exited immediately with code 0
+[2025-08-24 21:26:11] [FALLBACK] Browser fallback initiated for: https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4
+[2025-08-24 21:26:11] [SUCCESS] Playback started successfully
+[2025-08-24 21:26:11] [BROWSER] pywin32 not available for aggressive positioning
+[2025-08-24 21:26:13] [BROWSER FORCE] win32gui not available for forced positioning
+[2025-08-24 21:26:13] [BROWSER FORCE] Install with: pip install pywin32
+[2025-08-24 21:26:13] [BROWSER FORCE] Falling back to multiple positioning attempts...
+[2025-08-24 21:26:13] [BROWSER ALT] Attempting alternative positioning to (50, 50)
+[2025-08-24 21:26:14] [BROWSER ALT] PowerShell positioning attempt completed
+[2025-08-24 21:26:14] [BROWSER ALT] PowerShell output: True
+Moved window: ChurnRoom Timed Video - Google Chrome

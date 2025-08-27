@@ -1,21 +1,23 @@
 
 {
   "manifest_version": 3,
-  "name": "ChatGPT Live Logger",
-  "version": "1.0.8",
-  "description": "Streams user + assistant messages to a local logger.",
+  "name": "AI Chat Live Logger",
+  "version": "2.1.0",
+  "description": "Streams user + assistant messages from ChatGPT and Claude to a local logger.",
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://chat.openai.com/*",
+    "https://claude.ai/*",
     "http://127.0.0.1:8788/*"
   ],
-  "permissions": ["storage"],
+  "permissions": ["storage", "activeTab", "scripting"],
   "background": { "service_worker": "bg.js" },
   "content_scripts": [
     {
       "matches": [
         "https://chatgpt.com/*",
-        "https://chat.openai.com/*"
+        "https://chat.openai.com/*",
+        "https://claude.ai/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"

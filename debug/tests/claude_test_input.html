@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Claude Test Message Sender</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .test-controls { background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        button { padding: 10px 20px; margin: 5px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #005a8b; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .log { background: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 12px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Claude Test Message Sender</h1>
+        <div class="status info">Ready to send test messages to Claude window. Make sure Claude is open on the right side.</div>
+        
+        <div class="test-controls">
+            <h3>Test Message Controls</h3>
+            <button onclick="sendTestMessage()">Send Next Test Message</button>
+            <button onclick="sendSequentialMessages()">Send 5 Sequential Messages</button>
+            <button onclick="clearLog()">Clear Log</button>
+            <button onclick="detectClaudeWindow()">Detect Claude Window</button>
+        </div>
+        
+        <div class="status" id="status">Waiting for action...</div>
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        let messageCounter = 1;
+        
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logEl.textContent += `[${timestamp}] ${message}\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function setStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+        
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+            log('Log cleared');
+        }
+        
+        async function detectClaudeWindow() {
+            log('Attempting to detect Claude window...');
+            
+            try {
+                // Try to find Claude window/tab
+                const claudeSelectors = [
+                    'textarea[placeholder*="message"]',
+                    'textarea[placeholder*="Message"]',
+                    'div[contenteditable="true"][role="textbox"]',
+                    'textarea',
+                    '[role="textbox"]'
+                ];
+                
+                let foundInput = null;
+                for (const selector of claudeSelectors) {
+                    const elements = document.querySelectorAll(selector);
+                    log(`Testing selector "${selector}": ${elements.length} elements found`);
+                    
+                    for (const el of elements) {
+                        if (el.offsetHeight > 0 && el.offsetWidth > 100) {
+                            foundInput = el;
+                            log(`Found visible input field: ${el.tagName} with placeholder "${el.placeholder || 'none'}"`);
+                            break;
+                        }
+                    }
+                    if (foundInput) break;
+                }
+                
+                if (!foundInput) {
+                    // Try to focus on Claude window if it exists in another tab/window
+                    log('No Claude input found in current window. Checking if Claude is available...');
+                    
+                    // Check if we're on Claude domain
+                    if (window.location.hostname.includes('claude.ai')) {
+                        log('We are on Claude domain, but no input field detected');
+                        setStatus('On Claude domain but no input field found', 'error');
+                    } else {
+                        log('Not on Claude domain. Please open Claude in another window/tab');
+                        setStatus('Please open Claude.ai in another window', 'error');
+                    }
+                    return false;
+                }
+                
+                log('Claude input field detected successfully');
+                setStatus('Claude input field found', 'success');
+                return foundInput;
+                
+            } catch (e) {
+                log(`Error detecting Claude: ${e.message}`);
+                setStatus('Error detecting Claude window', 'error');
+                return false;
+            }
+        }
+        
+        function formatTestMessage(num) {
+            const paddedNum = num.toString().padStart(2, '0');
+            return `testmessage ${paddedNum}, respond okay ${paddedNum}`;
+        }
+        
+        async function sendTestMessage() {
+            const message = formatTestMessage(messageCounter);
+            log(`Preparing to send: "${message}"`);
+            
+            try {
+                // First detect Claude window
+                const claudeInput = await detectClaudeWindow();
+                if (!claudeInput) {
+                    log('Cannot send message - Claude input not found');
+                    setStatus('Failed to find Claude input field', 'error');
+                    return false;
+                }
+                
+                // Method 1: Try direct input manipulation
+                log('Attempting direct input...');
+                claudeInput.focus();
+                claudeInput.value = message;
+                claudeInput.innerText = message;
+                claudeInput.textContent = message;
+                
+                // Trigger input events
+                const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+                const changeEvent = new Event('change', { bubbles: true, cancelable: true });
+                claudeInput.dispatchEvent(inputEvent);
+                claudeInput.dispatchEvent(changeEvent);
+                
+                log('Text inserted into Claude input field');
+                
+                // Try to find and click send button
+                await new Promise(resolve => setTimeout(resolve, 500)); // Wait for UI to update
+                
+                const sendSelectors = [
+                    'button[aria-label*="send"]',
+                    'button[data-testid*="send"]', 
+                    'button[type="submit"]',
+                    'button:has(svg)'
+                ];
+                
+                let sendButton = null;
+                for (const selector of sendSelectors) {
+                    const buttons = document.querySelectorAll(selector);
+                    log(`Checking send selector "${selector}": ${buttons.length} buttons`);
+                    
+                    for (const btn of buttons) {
+                        if (btn.offsetHeight > 0 && btn.offsetWidth > 0) {
+                            sendButton = btn;
+                            log(`Found visible send button: ${btn.textContent || 'icon-only'}`);
+                            break;
+                        }
+                    }
+                    if (sendButton) break;
+                }
+                
+                if (sendButton) {
+                    log('Clicking send button...');
+                    sendButton.click();
+                    log(`✓ Test message ${messageCounter} sent successfully: "${message}"`);
+                    setStatus(`Message ${messageCounter} sent successfully`, 'success');
+                } else {
+                    log('Send button not found, trying Enter key...');
+                    claudeInput.focus();
+                    const enterEvent = new KeyboardEvent('keydown', {
+                        key: 'Enter',
+                        code: 'Enter',
+                        keyCode: 13,
+                        which: 13,
+                        bubbles: true,
+                        cancelable: true
+                    });
+                    claudeInput.dispatchEvent(enterEvent);
+                    log(`✓ Test message ${messageCounter} sent via Enter key: "${message}"`);
+                    setStatus(`Message ${messageCounter} sent via Enter`, 'success');
+                }
+                
+                messageCounter++;
+                return true;
+                
+            } catch (e) {
+                log(`Error sending message: ${e.message}`);
+                setStatus(`Failed to send message ${messageCounter}`, 'error');
+                return false;
+            }
+        }
+        
+        async function sendSequentialMessages() {
+            log('Starting sequential message sending...');
+            setStatus('Sending sequential messages...', 'info');
+            
+            for (let i = 0; i < 5; i++) {
+                const success = await sendTestMessage();
+                if (!success) {
+                    log('Stopping sequential send due to error');
+                    break;
+                }
+                
+                // Wait between messages
+                log(`Waiting 3 seconds before next message...`);
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+            
+            log('Sequential message sending complete');
+            setStatus('Sequential sending complete', 'success');
+        }
+        
+        // Auto-detect Claude on page load
+        window.addEventListener('load', () => {
+            log('Page loaded, detecting Claude...');
+            detectClaudeWindow();
+        });
+    </script>
+</body>
+</html>
