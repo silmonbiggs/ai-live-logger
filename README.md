@@ -1,10 +1,12 @@
-# AI Chat Live Logger (Multi-Platform)
+# AI Live Logger (Multi-Platform)
 
 Built this to capture AI conversations in real-time from ChatGPT and Claude for my AI project. Works great for my use case - maybe useful for yours too!
 
-⚡ **No API keys required** 📱 **Real-time streaming capture** 🤖 **ChatGPT + Claude support** 🛠️ **Enhanced metadata tracking**
+⚡ **No API keys required** 📱 **Real-time streaming capture** 🤖 **ChatGPT + Claude Sonnet 4.5** 🛠️ **Enhanced metadata tracking**
 
-*v2.0.0 - Now supports both ChatGPT and Claude with artifact and tool usage detection!*
+*v2.0.0 - Complete Claude Sonnet 4.5 support with sophisticated signal processing!*
+
+> **Note**: This project was recently renamed from `chatgpt-live-logger` to `ai-live-logger` to reflect its multi-platform support. If you're upgrading from the old name, see [GITHUB_RENAME_INSTRUCTIONS.md](GITHUB_RENAME_INSTRUCTIONS.md).
 
 ## Quick Start
 
