@@ -9,7 +9,7 @@ cd "C:\dev\chatgpt-live-logger"
 curl http://localhost:8788/health
 
 # 2. If server down, start it:
-python server/chatgpt-live-logger.py
+python server/ai-live-logger.py
 
 # 3. Test the system:
 # Send "testmessage99, respond okay99" in Claude/ChatGPT
@@ -33,7 +33,7 @@ All tools are now organized in `/debug/`:
 
 ## Key Files
 - **Extension**: `extension/content.js` (browser extension)
-- **Server**: `server/chatgpt-live-logger.py` (main logging server)
+- **Server**: `server/ai-live-logger.py` (main logging server)
 - **Logs**: `server/chat.log` (clean output), `server/recent.ndjson` (last 2 messages)
 
 **System is stable and working perfectly. Ready for real use!**

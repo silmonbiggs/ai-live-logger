@@ -1,0 +1,27 @@
+{
+  "timestamp": "2025-09-13T20:04:14.613162",
+  "success": false,
+  "server_healthy": true,
+  "log_counts": {
+    "chat": 3,
+    "verbose": 3,
+    "recent": 2
+  },
+  "logs": {
+    "chat": [
+      "{\"ts\": \"2025-09-13T20:03:44\", \"platform\": \"claude\", \"role\": \"user\", \"content\": \"testmessage1757819022, respond okay1757819022\", \"urls\": [], \"metadata\": {\"test\": true, \"timestamp\": \"2025-09-13T20:03:42.843070\", \"testId\": \"auto_test_1757819022\"}}",
+      "{\"ts\": \"2025-09-13T20:03:48\", \"platform\": \"claude\", \"role\": \"assistant\", \"content\": \"okay1757819022\", \"urls\": [], \"metadata\": {\"test\": true, \"timestamp\": \"2025-09-13T20:03:46.895703\", \"testId\": \"auto_test_1757819026\"}}",
+      "{\"ts\": \"2025-09-13T20:04:07\", \"platform\": \"claude\", \"role\": \"user\", \"content\": \"testmessage1757819022, respond okay1757819022\", \"urls\": [], \"metadata\": {\"test\": true, \"timestamp\": \"2025-09-13T20:04:05.945643\", \"testId\": \"auto_test_1757819045\"}}"
+    ],
+    "verbose": [
+      "{\"ts\": \"2025-09-13T20:03:44\", \"platform\": \"claude\", \"role\": \"user\", \"content\": \"testmessage1757819022, respond okay1757819022\", \"urls\": [], \"metadata\": {\"test\": true, \"timestamp\": \"2025-09-13T20:03:42.843070\", \"testId\": \"auto_test_1757819022\"}}",
+      "{\"ts\": \"2025-09-13T20:03:48\", \"platform\": \"claude\", \"role\": \"assistant\", \"content\": \"okay1757819022\", \"urls\": [], \"metadata\": {\"test\": true, \"timestamp\": \"2025-09-13T20:03:46.895703\", \"testId\": \"auto_test_1757819026\"}}",
+      "{\"ts\": \"2025-09-13T20:04:07\", \"platform\": \"claude\", \"role\": \"user\", \"content\": \"testmessage1757819022, respond okay1757819022\", \"urls\": [], \"metadata\": {\"test\": true, \"timestamp\": \"2025-09-13T20:04:05.945643\", \"testId\": \"auto_test_1757819045\"}}"
+    ],
+    "recent": [
+      "{\"ts\": \"2025-09-13T20:03:48\", \"platform\": \"claude\", \"role\": \"assistant\", \"content\": \"okay1757819022\", \"urls\": [], \"metadata\": {\"test\": true, \"timestamp\": \"2025-09-13T20:03:46.895703\", \"testId\": \"auto_test_1757819026\"}}",
+      "{\"ts\": \"2025-09-13T20:04:07\", \"platform\": \"claude\", \"role\": \"user\", \"content\": \"testmessage1757819022, respond okay1757819022\", \"urls\": [], \"metadata\": {\"test\": true, \"timestamp\": \"2025-09-13T20:04:05.945643\", \"testId\": \"auto_test_1757819045\"}}"
+    ]
+  },
+  "test_results": []
+}

@@ -9,7 +9,7 @@ Built this to capture AI conversations in real-time from ChatGPT and Claude for 
 ## Quick Start
 
 1. Install extension: Load `extension/` folder in Chrome
-2. Run server: `python server/chatgpt-live-logger.py`
+2. Run server: `python server/ai-live-logger.py`
 3. Chat with ChatGPT or Claude - messages appear in `chat.log` with platform detection
 
 ## Requirements
@@ -57,7 +57,7 @@ Chrome extension (Manifest v3) that monitors ChatGPT and Claude domains and capt
 
 FastAPI-based HTTP server that receives, processes, and stores logged messages from both platforms.
 
-- **chatgpt-live-logger.py**: Enhanced logging server that:
+- **ai-live-logger.py**: Enhanced logging server that:
   - Accepts CORS requests from ChatGPT and Claude domains
   - Receives and processes logged messages with platform detection
   - Implements duplicate detection (5-second window) with platform awareness
@@ -101,7 +101,7 @@ FastAPI-based HTTP server that receives, processes, and stores logged messages f
 2. Start the logging server:
    ```bash
    cd server/
-   python chatgpt-live-logger.py
+   python ai-live-logger.py
    ```
 
 The server will run on `http://127.0.0.1:8788`
@@ -147,7 +147,7 @@ Messages are stored in NDJSON format with enhanced metadata:
 
 ## Example Usage
 
-1. Start the server: `python server/chatgpt-live-logger.py`
+1. Start the server: `python server/ai-live-logger.py`
 2. Chat with ChatGPT or Claude
 3. Watch messages appear in `chat.log`:
 

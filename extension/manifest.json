@@ -1,26 +1,60 @@
-
 {
   "manifest_version": 3,
   "name": "AI Chat Live Logger",
-  "version": "2.1.0",
-  "description": "Streams user + assistant messages from ChatGPT and Claude to a local logger.",
+  "version": "2.0.0",
+  "description": "Logs ChatGPT and Claude conversations with platform-specific signal processing",
+
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+
   "host_permissions": [
+    "https://claude.ai/*",
     "https://chatgpt.com/*",
     "https://chat.openai.com/*",
-    "https://claude.ai/*",
+    "http://localhost:8788/*",
     "http://127.0.0.1:8788/*"
   ],
-  "permissions": ["storage", "activeTab", "scripting"],
-  "background": { "service_worker": "bg.js" },
+
+  "background": {
+    "service_worker": "bg.js"
+  },
+
   "content_scripts": [
     {
       "matches": [
+        "https://claude.ai/*",
         "https://chatgpt.com/*",
-        "https://chat.openai.com/*",
-        "https://claude.ai/*"
+        "https://chat.openai.com/*"
       ],
-      "js": ["content.js"],
-      "run_at": "document_idle"
+      "js": [
+        "shared/common.js",
+        "platforms/chatgpt_handler.js",
+        "platforms/claude_handler.js",
+        "content.js"
+      ],
+      "run_at": "document_start"
     }
-  ]
+  ],
+
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "shared/common.js",
+        "platforms/chatgpt_handler.js",
+        "platforms/claude_handler.js"
+      ],
+      "matches": [
+        "https://claude.ai/*",
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*"
+      ]
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AI Chat Live Logger"
+  }
 }

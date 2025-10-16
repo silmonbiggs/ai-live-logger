@@ -27,7 +27,7 @@ chatgpt-live-logger/
 │   ├── bg.js              # Background script  
 │   └── manifest.json      # Extension manifest
 ├── server/                # Python server (PRODUCTION)
-│   ├── chatgpt-live-logger.py  # Main FastAPI server
+│   ├── ai-live-logger.py  # Main FastAPI server
 │   ├── chat.log           # Clean filtered conversations
 │   ├── chatverbose.log    # Unfiltered debug log
 │   └── recent.ndjson      # Last 2 messages for monitoring
@@ -72,7 +72,7 @@ cd "C:\dev\chatgpt-live-logger"
 curl http://localhost:8788/health
 
 # Start server if needed
-cd server && python chatgpt-live-logger.py
+cd server && python ai-live-logger.py
 
 # Test system with any message format:
 # "testmessage[X], respond okay[X]" in Claude/ChatGPT

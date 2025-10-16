@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ChatGPT Live Logger - Fixed Auto Injector</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
+        .status { margin: 10px 0; padding: 10px; border: 1px solid #333; background: #222; max-height: 400px; overflow-y: auto; }
+        .success { border-color: #00aa00; }
+        .error { border-color: #aa0000; color: #ff0000; }
+        .controls { margin: 20px 0; }
+        button { padding: 10px 20px; margin: 5px; background: #333; color: #00ff00; border: 1px solid #666; cursor: pointer; }
+        button:hover { background: #444; }
+        .step { margin: 10px 0; padding: 5px; background: #333; }
+        .step.active { background: #004400; border-left: 4px solid #00aa00; }
+    </style>
+</head>
+<body>
+    <h1>🛠️ ChatGPT Live Logger - Fixed Auto Injector</h1>
+    
+    <div class="controls">
+        <button onclick="runDiagnostics()">🔍 1. Run Diagnostics</button>
+        <button onclick="injectCORSBypass()">🚀 2. Inject CORS Bypass</button>
+        <button onclick="testLogging()">✅ 3. Test Logging</button>
+        <button onclick="clearStatus()">🗑️ Clear Status</button>
+    </div>
+    
+    <div class="step" id="step1">
+        <h3>Step 1: Diagnostics</h3>
+        <p>First, we'll diagnose Claude's DOM structure and identify CORS issues.</p>
+        <button onclick="runDiagnostics()">Run Diagnostics</button>
+    </div>
+    
+    <div class="step" id="step2">
+        <h3>Step 2: CORS Bypass Injection</h3>
+        <p>Inject simplified logger that bypasses CORS using image/JSONP requests.</p>
+        <button onclick="injectCORSBypass()">Inject CORS Bypass</button>
+    </div>
+    
+    <div class="step" id="step3">
+        <h3>Step 3: Test in Claude</h3>
+        <p>Go to Claude and type: <code>testmessage127, respond okay127</code></p>
+        <button onclick="testLogging()">Test Connection</button>
+    </div>
+    
+    <div id="status" class="status">
+        <div><strong>Ready to fix user input detection!</strong></div>
+        <div>Navigate to claude.ai in another tab, then follow the steps above.</div>
+    </div>
+
+    <script>
+        const status = document.getElementById('status');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff0000' : type === 'success' ? '#00aa00' : '#00ff00';
+            console.log(`[${timestamp}] ${message}`);
+            status.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            status.scrollTop = status.scrollHeight;
+        }
+        
+        function clearStatus() {
+            status.innerHTML = '<div><strong>Status cleared</strong></div>';
+        }
+        
+        function activateStep(stepNumber) {
+            document.querySelectorAll('.step').forEach(step => step.classList.remove('active'));
+            document.getElementById(`step${stepNumber}`)?.classList.add('active');
+        }
+        
+        function runDiagnostics() {
+            activateStep(1);
+            log('🔍 Injecting DOM diagnostic script...');
+            
+            const diagnosticScript = \`
+// Claude DOM Inspector - Diagnose user input detection issues
+(function() {
+  'use strict';
+  
+  const INSPECTOR_NAME = '[CLAUDE DOM INSPECTOR]';
+  console.log(\\\`\\${INSPECTOR_NAME} Starting Claude UI analysis...\\\`);
+  
+  // Test server connection first
+  function testServerConnection() {
+    console.log(\\\`\\${INSPECTOR_NAME} Testing server connection...\\\`);
+    
+    fetch('http://localhost:8788/health', {
+      method: 'GET',
+      mode: 'cors'
+    })
+    .then(response => {
+      if (response.ok) {
+        console.log(\\\`\\${INSPECTOR_NAME} ✅ Server connection successful\\\`);
+      } else {
+        console.log(\\\`\\${INSPECTOR_NAME} ❌ Server responded with error: \\${response.status}\\\`);
+      }
+    })
+    .catch(error => {
+      console.log(\\\`\\${INSPECTOR_NAME} ❌ CORS/Connection error: \\${error.message}\\\`);
+      console.log(\\\`\\${INSPECTOR_NAME} This explains why scripts aren't working!\\\`);
+    });
+  }
+  
+  // Find input elements
+  function analyzeInputElements() {
+    console.log(\\\`\\${INSPECTOR_NAME} === INPUT ELEMENTS ===\"\\\`);
+    const inputs = document.querySelectorAll('textarea, input, [contenteditable="true"], [contenteditable=""]');
+    console.log(\\\`\\${INSPECTOR_NAME} Found \\${inputs.length} potential input elements\\\`);
+    inputs.forEach((el, i) => {
+      console.log(\\\`\\${INSPECTOR_NAME} \\${i+1}. \\${el.tagName} - Classes: \\${el.className}\\\`);
+    });
+  }
+  
+  // Find send buttons
+  function analyzeSendButtons() {
+    console.log(\\\`\\${INSPECTOR_NAME} === SEND BUTTONS ===\"\\\`);
+    const buttons = document.querySelectorAll('button');
+    console.log(\\\`\\${INSPECTOR_NAME} Found \\${buttons.length} buttons total\\\`);
+    buttons.forEach((btn, i) => {
+      const ariaLabel = btn.getAttribute('aria-label') || '';
+      const disabled = btn.disabled ? 'DISABLED' : 'enabled';
+      if (ariaLabel.toLowerCase().includes('send') || !btn.disabled) {
+        console.log(\\\`\\${INSPECTOR_NAME} \\${i+1}. \\${ariaLabel || 'no label'} [\\${disabled}]\\\`);
+      }
+    });
+  }
+  
+  testServerConnection();
+  setTimeout(() => {
+    analyzeInputElements();
+    analyzeSendButtons();
+    console.log(\\\`\\${INSPECTOR_NAME} === DIAGNOSTIC COMPLETE ===\"\\\`);
+  }, 1000);
+})();
+\`;
+            
+            try {
+                eval(diagnosticScript);
+                log('✅ Diagnostic script injected - check console for results', 'success');
+                setTimeout(() => {
+                    log('📋 Next: Click "2. Inject CORS Bypass" to proceed');
+                }, 2000);
+            } catch (error) {
+                log('❌ Failed to inject diagnostic script: ' + error.message, 'error');
+            }
+        }
+        
+        function injectCORSBypass() {
+            activateStep(2);
+            log('🚀 Injecting CORS bypass logger...');
+            
+            const corsScript = \`
+// CORS Bypass Logger - Simplified user input detection
+(function() {
+  'use strict';
+  
+  const LOGGER_NAME = '[CORS BYPASS]';
+  console.log(\\\`\\${LOGGER_NAME} Starting CORS bypass logger...\\\`);
+  
+  let lastLoggedContent = '';
+  let lastLoggedTime = 0;
+  
+  function logViaImage(data) {
+    const now = Date.now();
+    
+    // Prevent duplicate logging within 2 seconds
+    if (data.text === lastLoggedContent && (now - lastLoggedTime) < 2000) {
+      return;
+    }
+    
+    lastLoggedContent = data.text;
+    lastLoggedTime = now;
+    
+    const img = new Image();
+    const params = new URLSearchParams({
+      platform: 'claude',
+      role: data.role || 'user',
+      text: data.text || '',
+      method: 'cors_bypass_image',
+      timestamp: new Date().toISOString()
+    });
+    
+    img.src = \\\`http://localhost:8788/log?\\${params.toString()}\\\`;
+    console.log(\\\`\\${LOGGER_NAME} 📡 Logged: "\\${data.text?.slice(0, 40)}..."\\\`);
+  }
+  
+  // Simple keyboard detection
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      const target = event.target;
+      
+      if (target.matches('textarea, [contenteditable="true"], [contenteditable=""]')) {
+        const content = target.value || target.textContent || '';
+        
+        if (content && content.trim() && content.includes('testmessage')) {
+          console.log(\\\`\\${LOGGER_NAME} 🎯 USER INPUT: "\\${content.slice(0, 50)}..."\\\`);
+          logViaImage({ role: 'user', text: content.trim() });
+        }
+      }
+    }
+  }, true);
+  
+  // Simple click detection
+  document.addEventListener('click', function(event) {
+    const button = event.target.closest('button');
+    if (button) {
+      setTimeout(() => {
+        const inputs = document.querySelectorAll('textarea, [contenteditable="true"], [contenteditable=""]');
+        for (const input of inputs) {
+          const content = input.value || input.textContent || '';
+          if (content && content.trim() && content.includes('testmessage')) {
+            console.log(\\\`\\${LOGGER_NAME} 🎯 SEND BUTTON: "\\${content.slice(0, 50)}..."\\\`);
+            logViaImage({ role: 'user', text: content.trim() });
+            break;
+          }
+        }
+      }, 100);
+    }
+  }, true);
+  
+  // Watch for assistant responses
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.addedNodes) {
+        mutation.addedNodes.forEach(node => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const text = node.textContent || '';
+            if (text.includes('okay') && text.length < 100 && text.length > 3) {
+              setTimeout(() => {
+                console.log(\\\`\\${LOGGER_NAME} 🎯 ASSISTANT RESPONSE: "\\${text.slice(0, 50)}..."\\\`);
+                logViaImage({ role: 'assistant', text: text.trim() });
+              }, 500);
+            }
+          }
+        });
+      }
+    });
+  });
+  
+  observer.observe(document.body, { childList: true, subtree: true });
+  
+  console.log(\\\`\\${LOGGER_NAME} ✅ CORS bypass active - using image requests\\\`);
+  
+  // Test connection
+  logViaImage({ role: 'user', text: 'cors_bypass_test_' + Date.now() });
+  
+  window.corsLogger = { logViaImage };
+})();
+\`;
+            
+            try {
+                eval(corsScript);
+                log('✅ CORS bypass logger injected successfully!', 'success');
+                log('📋 Now go to Claude and type: testmessage127, respond okay127');
+                log('📋 Then click "3. Test Logging" to verify it worked');
+            } catch (error) {
+                log('❌ Failed to inject CORS bypass: ' + error.message, 'error');
+            }
+        }
+        
+        function testLogging() {
+            activateStep(3);
+            log('✅ Testing server connection...');
+            
+            fetch('http://localhost:8788/health')
+                .then(response => response.text())
+                .then(result => {
+                    log('✅ Server is responding: ' + result, 'success');
+                    log('📊 Check the simple_monitor.py console for new log entries');
+                    log('📊 If you see entries with "cors_bypass", it\'s working!');
+                })
+                .catch(error => {
+                    log('❌ Server test failed: ' + error.message, 'error');
+                });
+        }
+        
+        // Auto-start diagnostics
+        setTimeout(() => {
+            log('🔄 Auto-starting diagnostics in 2 seconds...');
+            setTimeout(runDiagnostics, 2000);
+        }, 1000);
+    </script>
+</body>
+</html>
